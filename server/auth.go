@@ -26,29 +26,23 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Auth Middleware - Protects routes with JWT
-func Auth(next echo.HandlerFunc) echo.HandlerFunc {
+// auth Middleware - Protects routes with JWT
+func auth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(ctx *echo.Context) (err error) {
 		header := ctx.Request().Header.Get("Authorization")
 		if header == "" {
-			return echo.
-				NewHTTPError(http.StatusUnauthorized,
-					"Authorization header is required")
+			return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header is required")
 		}
 
 		// Safety check for malformed Bearer string
 		if !strings.HasPrefix(header, "Bearer ") {
-			return echo.
-				NewHTTPError(http.StatusUnauthorized,
-					"Invalid authorization format. Use 'Bearer <token>'")
+			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid authorization format. Use 'Bearer <token>'")
 		}
 
 		tokeString := header[len("Bearer "):]
 		token, err := verifyToken(tokeString)
 		if err != nil {
-			return echo.
-				NewHTTPError(http.StatusUnauthorized,
-					"Invalid or expired token")
+			return echo.NewHTTPError(http.StatusUnauthorized, "Invalid or expired token")
 		}
 
 		claims := token.Claims.(jwt.MapClaims)
@@ -64,7 +58,7 @@ func current(ctx *echo.Context) string {
 }
 
 // Begin the authencation
-func Begin(c *echo.Context) (err error) {
+func begin(c *echo.Context) (err error) {
 	q := c.Request().URL.Query()
 	q.Add("provider", "github")
 	c.Request().URL.RawQuery = q.Encode()
@@ -74,15 +68,12 @@ func Begin(c *echo.Context) (err error) {
 }
 
 // Callback from the authentication provider
-func Callback(db *sql.DB, log *log.Logger) echo.HandlerFunc {
+func callback(db *sql.DB, log *log.Logger) echo.HandlerFunc {
 	return func(ctx *echo.Context) (err error) {
-		user, err := gothic.CompleteUserAuth(
-			ctx.Response(), ctx.Request(),
-		)
+		user, err := gothic.CompleteUserAuth(ctx.Response(), ctx.Request())
 
 		if err != nil {
-			return echo.
-				NewHTTPError(http.StatusConflict, "")
+			return echo.NewHTTPError(http.StatusConflict, "")
 		}
 
 		if _, err := sq.Insert("users").
@@ -99,7 +90,7 @@ func Callback(db *sql.DB, log *log.Logger) echo.HandlerFunc {
 			return err
 		}
 
-		return ctx.Redirect(http.StatusOK, "http://7669")
+		return ctx.Redirect(http.StatusOK, fmt.Sprintf("http://7669/%s", token))
 	}
 }
 
